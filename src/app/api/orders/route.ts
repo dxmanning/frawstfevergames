@@ -4,6 +4,7 @@ import { Product } from "@/models/Product";
 import { Order } from "@/models/Order";
 import { quoteShipping } from "@/lib/shipping";
 import { randomSuffix } from "@/lib/slug";
+import { getCustomerSession } from "@/lib/customer-auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Shipping address incomplete" }, { status: 400 });
 
     await connectDB();
+
+    // Attach logged-in user if available
+    const session = await getCustomerSession();
 
     const productIds = [...new Set(items.map((i) => i.productId))];
     const products = await Product.find({ _id: { $in: productIds } });
@@ -100,6 +104,7 @@ export async function POST(req: NextRequest) {
     const orderNumber = `RR-${Date.now().toString(36).toUpperCase()}-${randomSuffix(3).toUpperCase()}`;
     const order = await Order.create({
       orderNumber,
+      userId: session?.userId || undefined,
       items: resolved.map((r) => ({
         productId: r.productId,
         variantId: r.variantId,

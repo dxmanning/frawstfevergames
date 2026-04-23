@@ -37,6 +37,9 @@ export type Fulfillment = "ship" | "pickup";
 export interface OrderDoc {
   _id: mongoose.Types.ObjectId;
   orderNumber: string;
+  userId?: mongoose.Types.ObjectId;
+  stripeSessionId?: string;
+  stripePaymentId?: string;
   items: OrderItem[];
   subtotal: number;
   shipping: number;
@@ -83,6 +86,9 @@ const AddressSchema = new Schema<AddressDoc>(
 const OrderSchema = new Schema<OrderDoc>(
   {
     orderNumber: { type: String, required: true, unique: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    stripeSessionId: { type: String, index: true },
+    stripePaymentId: String,
     items: { type: [OrderItemSchema], default: [] },
     subtotal: { type: Number, required: true },
     shipping: { type: Number, default: 0 },

@@ -10,7 +10,28 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { lines, subtotal, totalWeight, allowsPickup, clear } = useCart();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    // Auto-fill from logged-in user profile
+    fetch("/api/account/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.name) return;
+        setForm((f) => ({
+          ...f,
+          name: f.name || data.name,
+          email: f.email || data.email,
+          phone: f.phone || data.phone || "",
+          line1: f.line1 || data.address?.line1 || "",
+          line2: f.line2 || data.address?.line2 || "",
+          city: f.city || data.address?.city || "",
+          state: f.state || data.address?.state || "",
+          postalCode: f.postalCode || data.address?.postalCode || "",
+        }));
+        if (data.address?.country) setCountry((c) => c || data.address.country);
+      })
+      .catch(() => {});
+  }, []);
 
   const canPickup = allowsPickup();
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">(canPickup ? "pickup" : "ship");
@@ -52,7 +73,7 @@ export default function CheckoutPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch("/api/checkout/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,9 +88,14 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Order failed");
+      if (!res.ok) throw new Error(data.error || "Checkout failed");
       clear();
-      router.push(`/checkout/success?n=${encodeURIComponent(data.orderNumber)}`);
+      // Redirect to Stripe Checkout
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        router.push(`/checkout/success?n=${encodeURIComponent(data.orderNumber)}`);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

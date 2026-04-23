@@ -6,7 +6,15 @@ import { useEffect, useState } from "react";
 export default function Nav() {
   const count = useCart((s) => s.count());
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [user, setUser] = useState<{ name: string } | null>(null);
+  useEffect(() => {
+    setMounted(true);
+    // Check if user is logged in
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.name) setUser(data); })
+      .catch(() => {});
+  }, []);
   const storeName = process.env.NEXT_PUBLIC_STORE_NAME || "Retro Rack";
 
   return (
@@ -24,6 +32,15 @@ export default function Nav() {
           <Link href="/about" className="nav-link">About</Link>
         </nav>
         <div className="flex items-center gap-3">
+          {mounted && user ? (
+            <Link href="/account" className="btn btn-ghost text-sm">
+              {user.name}
+            </Link>
+          ) : (
+            <Link href="/login" className="btn btn-ghost text-sm">
+              Sign in
+            </Link>
+          )}
           <Link href="/cart" className="btn btn-ghost relative">
             <span>Cart</span>
             {mounted && count > 0 && (

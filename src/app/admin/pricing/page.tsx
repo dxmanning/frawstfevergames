@@ -1,5 +1,32 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import ProgressModal from "@/components/admin/ProgressModal";
+
+interface ProgressState {
+  open: boolean;
+  title: string;
+  total: number;
+  current: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  logs: string[];
+  done: boolean;
+}
+
+const emptyProgress: ProgressState = {
+  open: false,
+  title: "",
+  total: 0,
+  current: 0,
+  created: 0,
+  updated: 0,
+  skipped: 0,
+  errors: 0,
+  logs: [],
+  done: false,
+};
 
 export default function PricingSyncPage() {
   const [url, setUrl] = useState("");
@@ -11,21 +38,98 @@ export default function PricingSyncPage() {
   // PriceCharting sync state
   const [pcApplySell, setPcApplySell] = useState(false);
   const [pcMarkup, setPcMarkup] = useState(15);
-  const [pcLoading, setPcLoading] = useState(false);
-  const [pcResult, setPcResult] = useState<any>(null);
 
   // PriceCharting import state
   const [importLimit, setImportLimit] = useState(100);
   const [importStock, setImportStock] = useState(0);
   const [importOverwrite, setImportOverwrite] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
 
-  async function runPCImport(dryRun: boolean) {
-    setImportLoading(true);
-    setImportResult(null);
+  // Progress modal
+  const [progress, setProgress] = useState<ProgressState>(emptyProgress);
+
+  const runSSE = useCallback(async (url: string, fetchOpts: RequestInit, title: string) => {
+    setProgress({ ...emptyProgress, open: true, title });
+
     try {
-      const res = await fetch("/api/admin/pricecharting/import", {
+      const res = await fetch(url, fetchOpts);
+      if (!res.ok || !res.body) {
+        setProgress((p) => ({ ...p, done: true, logs: [...p.logs, `ERROR: HTTP ${res.status}`] }));
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const chunk of lines) {
+          const line = chunk.replace(/^data: /, "").trim();
+          if (!line) continue;
+          try {
+            const evt = JSON.parse(line);
+
+            if (evt.type === "init") {
+              setProgress((p) => ({ ...p, total: evt.total }));
+            } else if (evt.type === "progress") {
+              setProgress((p) => ({
+                ...p,
+                current: evt.processed,
+                total: evt.total,
+                created: evt.created,
+                updated: evt.updated,
+                skipped: evt.skipped,
+                errors: evt.errors,
+                logs: evt.log ? [...p.logs, evt.log] : p.logs,
+              }));
+            } else if (evt.type === "done") {
+              setProgress((p) => ({
+                ...p,
+                current: evt.processed,
+                created: evt.created,
+                updated: evt.updated,
+                skipped: evt.skipped,
+                errors: evt.errors,
+                done: true,
+                logs: [...p.logs, `Done — ${evt.created} created, ${evt.updated} updated, ${evt.skipped} skipped, ${evt.errors} errors`],
+              }));
+            } else if (evt.type === "error") {
+              setProgress((p) => ({
+                ...p,
+                done: true,
+                logs: [...p.logs, `ERROR: ${evt.message}`],
+              }));
+            } else if (evt.type === "status") {
+              setProgress((p) => ({
+                ...p,
+                logs: [...p.logs, evt.message],
+              }));
+            }
+          } catch {}
+        }
+      }
+
+      // Ensure done state
+      setProgress((p) => (p.done ? p : { ...p, done: true }));
+    } catch (e: unknown) {
+      setProgress((p) => ({
+        ...p,
+        done: true,
+        logs: [...p.logs, `ERROR: ${e instanceof Error ? e.message : "Connection failed"}`],
+      }));
+    }
+  }, []);
+
+  function runPCImport(dryRun: boolean) {
+    runSSE(
+      "/api/admin/pricecharting/import",
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -34,14 +138,24 @@ export default function PricingSyncPage() {
           defaultStock: importStock,
           overwrite: importOverwrite,
         }),
-      });
-      const data = await res.json();
-      setImportResult(data);
-    } catch (e: unknown) {
-      setImportResult({ error: e instanceof Error ? e.message : "Failed" });
-    } finally {
-      setImportLoading(false);
-    }
+      },
+      dryRun ? "Import Preview (Dry Run)" : "Importing from PriceCharting"
+    );
+  }
+
+  function runPCSync() {
+    runSSE(
+      "/api/admin/pricecharting/sync",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applyToSellPrice: pcApplySell,
+          markupPct: pcMarkup,
+        }),
+      },
+      "Syncing PriceCharting Prices"
+    );
   }
 
   async function runCSVSync() {
@@ -66,29 +180,14 @@ export default function PricingSyncPage() {
     }
   }
 
-  async function runPCSync() {
-    setPcLoading(true);
-    setPcResult(null);
-    try {
-      const res = await fetch("/api/admin/pricecharting/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          applyToSellPrice: pcApplySell,
-          markupPct: pcMarkup,
-        }),
-      });
-      const data = await res.json();
-      setPcResult(data);
-    } catch (e: unknown) {
-      setPcResult({ error: e instanceof Error ? e.message : "Failed" });
-    } finally {
-      setPcLoading(false);
-    }
-  }
-
   return (
     <div className="space-y-8">
+      {/* Progress modal */}
+      <ProgressModal
+        {...progress}
+        onClose={() => setProgress(emptyProgress)}
+      />
+
       <div>
         <h1 className="text-2xl font-bold mb-1">Price / Stock sync</h1>
         <p className="text-white/60 text-sm">
@@ -143,25 +242,44 @@ export default function PricingSyncPage() {
         <div className="flex gap-2">
           <button
             onClick={() => runPCImport(true)}
-            disabled={importLoading}
+            disabled={progress.open}
             className="btn btn-ghost"
           >
-            {importLoading ? "Working…" : "Preview (dry run)"}
+            Preview (dry run)
           </button>
           <button
             onClick={() => runPCImport(false)}
-            disabled={importLoading}
+            disabled={progress.open}
             className="btn btn-primary"
           >
-            {importLoading ? "Importing…" : "Run import"}
+            Run import
           </button>
         </div>
+      </section>
 
-        {importResult && (
-          <pre className="card p-3 text-xs overflow-x-auto max-h-96">
-            {JSON.stringify(importResult, null, 2)}
-          </pre>
-        )}
+      {/* Fetch missing images */}
+      <section className="card p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-lg">Fetch missing cover images</h2>
+          <p className="text-xs text-white/60">
+            Scrapes PriceCharting product pages for cover images on all products
+            that have a PriceCharting ID but are missing a cover image. This won't
+            overwrite existing images.
+          </p>
+        </div>
+        <button
+          onClick={() =>
+            runSSE(
+              "/api/admin/pricecharting/fetch-images",
+              { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+              "Fetching Missing Cover Images"
+            )
+          }
+          disabled={progress.open}
+          className="btn btn-primary"
+        >
+          Fetch missing images
+        </button>
       </section>
 
       {/* PriceCharting live sync */}
@@ -211,15 +329,9 @@ export default function PricingSyncPage() {
           <b> Box Only</b> → box-only-price, <b>Manual Only</b> → manual-only-price.
         </div>
 
-        <button onClick={runPCSync} disabled={pcLoading} className="btn btn-primary">
-          {pcLoading ? "Syncing from PriceCharting…" : "Run PriceCharting sync"}
+        <button onClick={runPCSync} disabled={progress.open} className="btn btn-primary">
+          Run PriceCharting sync
         </button>
-
-        {pcResult && (
-          <pre className="card p-3 text-xs overflow-x-auto">
-            {JSON.stringify(pcResult, null, 2)}
-          </pre>
-        )}
       </section>
 
       {/* CSV / Google Sheet sync */}

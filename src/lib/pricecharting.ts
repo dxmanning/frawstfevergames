@@ -98,6 +98,43 @@ export function priceForCondition(p: PCProduct, conditionCode: string): number |
 export const centsToUSD = (cents?: number) =>
   typeof cents === "number" && cents > 0 ? Math.round(cents) / 100 : undefined;
 
+/**
+ * Scrape the cover image from a PriceCharting product page.
+ * Fetches the HTML and looks for og:image meta tag, then falls back to
+ * the first product image on the page.
+ */
+export async function pcFetchCoverImage(pcId: string): Promise<string> {
+  try {
+    const url = `https://www.pricecharting.com/game/${pcId}`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+
+    // Try og:image first
+    const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
+      || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+    if (ogMatch?.[1]) {
+      const imgUrl = ogMatch[1].trim();
+      if (imgUrl && !imgUrl.includes("placeholder") && !imgUrl.includes("no-image")) return imgUrl;
+    }
+
+    // Fallback: look for product image in the page
+    const imgMatch = html.match(/<img[^>]+class=["'][^"']*product-image[^"']*["'][^>]+src=["']([^"']+)["']/i)
+      || html.match(/<img[^>]+src=["'](https:\/\/[^"']*pricecharting[^"']*\/game\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i);
+    if (imgMatch?.[1]) return imgMatch[1].trim();
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 /** PriceCharting "console-name" → our PLATFORMS value. Falls back to "Other". */
 export function mapConsoleToPlatform(consoleName: string | undefined): string {
   const c = (consoleName || "").toLowerCase();

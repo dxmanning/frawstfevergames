@@ -10,6 +10,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/products" className="btn btn-ghost">Products</Link>
           <Link href="/admin/products/new" className="btn btn-ghost">+ New</Link>
           <Link href="/admin/orders" className="btn btn-ghost">Orders</Link>
+          <Link href="/admin/users" className="btn btn-ghost">Users</Link>
           <Link href="/admin/pricing" className="btn btn-ghost">Price sync</Link>
         </nav>
         <LogoutButton />

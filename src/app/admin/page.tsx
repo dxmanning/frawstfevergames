@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/models/Product";
 import { Order } from "@/models/Order";
+import { User } from "@/models/User";
 import { money } from "@/lib/money";
 import Link from "next/link";
 
@@ -13,6 +14,7 @@ type DashboardData = {
   outOfStock: number;
   inventoryValue: number;
   pendingOrders: number;
+  userCount: number;
   recentOrders: any[];
 };
 type DashboardError = { ok: false; error: string };
@@ -20,7 +22,7 @@ type DashboardError = { ok: false; error: string };
 async function loadDashboard(): Promise<DashboardData | DashboardError> {
   try {
     await connectDB();
-    const [productCount, variantAgg, pendingOrders, recentOrders] = await Promise.all([
+    const [productCount, variantAgg, pendingOrders, userCount, recentOrders] = await Promise.all([
       Product.countDocuments({}),
       Product.aggregate([
         { $unwind: "$variants" },
@@ -38,6 +40,7 @@ async function loadDashboard(): Promise<DashboardData | DashboardError> {
         },
       ]),
       Order.countDocuments({ status: "pending" }),
+      User.countDocuments({}),
       Order.find({}).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
     const agg = variantAgg[0] || { totalUnits: 0, outOfStock: 0, inventoryValue: 0 };
@@ -48,6 +51,7 @@ async function loadDashboard(): Promise<DashboardData | DashboardError> {
       outOfStock: agg.outOfStock,
       inventoryValue: agg.inventoryValue,
       pendingOrders,
+      userCount,
       recentOrders: JSON.parse(JSON.stringify(recentOrders)),
     };
   } catch (e) {
@@ -112,6 +116,7 @@ export default async function AdminDashboard() {
     { label: "Units in stock", value: data.totalUnits },
     { label: "Out-of-stock variants", value: data.outOfStock },
     { label: "Pending orders", value: data.pendingOrders },
+    { label: "Users", value: data.userCount },
     { label: "Inventory value", value: money(data.inventoryValue || 0) },
   ];
 
