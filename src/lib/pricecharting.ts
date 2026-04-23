@@ -99,9 +99,9 @@ export const centsToUSD = (cents?: number) =>
   typeof cents === "number" && cents > 0 ? Math.round(cents) / 100 : undefined;
 
 /**
- * Scrape the cover image from a PriceCharting product page.
- * Fetches the HTML and looks for og:image meta tag, then falls back to
- * the first product image on the page.
+ * Scrape the cover image from a PriceCharting product page,
+ * then upload it to Cloudinary for permanent hosting.
+ * Returns the Cloudinary URL, or empty string if not found.
  */
 export async function pcFetchCoverImage(pcId: string): Promise<string> {
   try {
@@ -116,20 +116,36 @@ export async function pcFetchCoverImage(pcId: string): Promise<string> {
     if (!res.ok) return "";
     const html = await res.text();
 
+    let sourceUrl = "";
+
     // Try og:image first
     const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
       || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
     if (ogMatch?.[1]) {
       const imgUrl = ogMatch[1].trim();
-      if (imgUrl && !imgUrl.includes("placeholder") && !imgUrl.includes("no-image")) return imgUrl;
+      if (imgUrl && !imgUrl.includes("placeholder") && !imgUrl.includes("no-image")) {
+        sourceUrl = imgUrl;
+      }
     }
 
     // Fallback: look for product image in the page
-    const imgMatch = html.match(/<img[^>]+class=["'][^"']*product-image[^"']*["'][^>]+src=["']([^"']+)["']/i)
-      || html.match(/<img[^>]+src=["'](https:\/\/[^"']*pricecharting[^"']*\/game\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i);
-    if (imgMatch?.[1]) return imgMatch[1].trim();
+    if (!sourceUrl) {
+      const imgMatch = html.match(/<img[^>]+class=["'][^"']*product-image[^"']*["'][^>]+src=["']([^"']+)["']/i)
+        || html.match(/<img[^>]+src=["'](https:\/\/[^"']*pricecharting[^"']*\/game\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i);
+      if (imgMatch?.[1]) sourceUrl = imgMatch[1].trim();
+    }
 
-    return "";
+    if (!sourceUrl) return "";
+
+    // Upload to Cloudinary
+    try {
+      const { uploadFromUrl } = await import("@/lib/cloudinary");
+      return await uploadFromUrl(sourceUrl, "products");
+    } catch (e) {
+      console.error(`[pcFetchCoverImage] Cloudinary upload failed for ${pcId}:`, e);
+      // Fall back to raw URL if Cloudinary fails
+      return sourceUrl;
+    }
   } catch {
     return "";
   }

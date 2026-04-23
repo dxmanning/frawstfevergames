@@ -175,27 +175,106 @@ export default function ProductForm({ initial }: { initial?: ProductFormValue })
           />
         </div>
         <div className="md:col-span-2">
-          <label className="label">Cover image URL</label>
-          <input
-            className="input"
-            value={v.coverImage}
-            onChange={(e) => setField("coverImage", e.target.value)}
-            placeholder="https://…"
-          />
+          <label className="label">Cover image</label>
+          <div className="flex gap-3 items-start">
+            {v.coverImage && (
+              <img src={v.coverImage} alt="" className="w-20 h-28 object-cover rounded border border-white/10" />
+            )}
+            <div className="flex-1 space-y-2">
+              <input
+                className="input"
+                value={v.coverImage}
+                onChange={(e) => setField("coverImage", e.target.value)}
+                placeholder="https://… or upload below"
+              />
+              <label className="block cursor-pointer">
+                <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center text-sm text-white/40 hover:border-[#9b5cff]/50 hover:text-white/60 transition">
+                  Click to upload or drag & drop
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      try {
+                        const res = await fetch("/api/admin/upload", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ file: reader.result }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        setField("coverImage", data.url);
+                        if (!v.images.includes(data.url)) {
+                          setField("images", [...v.images, data.url]);
+                        }
+                      } catch (err: unknown) {
+                        alert(err instanceof Error ? err.message : "Upload failed");
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
         </div>
         <div className="md:col-span-2">
-          <label className="label">Additional images (one URL per line)</label>
-          <textarea
-            className="textarea"
-            rows={3}
-            value={v.images.join("\n")}
-            onChange={(e) =>
-              setField(
-                "images",
-                e.target.value.split("\n").map((s) => s.trim()).filter(Boolean)
-              )
-            }
-          />
+          <label className="label">Additional images</label>
+          {v.images.length > 0 && (
+            <div className="flex gap-2 flex-wrap mb-2">
+              {v.images.map((img, i) => (
+                <div key={i} className="relative group">
+                  <img src={img} alt="" className="w-16 h-22 object-cover rounded border border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => setField("images", v.images.filter((_, j) => j !== i))}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="block cursor-pointer">
+            <div className="border-2 border-dashed border-white/20 rounded-lg p-3 text-center text-sm text-white/40 hover:border-[#9b5cff]/50 hover:text-white/60 transition">
+              + Add more images
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = e.target.files;
+                if (!files) return;
+                for (const file of Array.from(files)) {
+                  const reader = new FileReader();
+                  reader.onload = async () => {
+                    try {
+                      const res = await fetch("/api/admin/upload", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ file: reader.result }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      setField("images", [...v.images, data.url]);
+                      if (!v.coverImage) setField("coverImage", data.url);
+                    } catch (err: unknown) {
+                      alert(err instanceof Error ? err.message : "Upload failed");
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+          </label>
         </div>
         <div className="md:col-span-2">
           <label className="label">Description</label>
