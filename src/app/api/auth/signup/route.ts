@@ -37,12 +37,17 @@ export async function POST(req: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
     const code = generateVerifyCode();
 
+    // First user becomes admin automatically
+    const userCount = await User.countDocuments({});
+    const role = userCount === 0 ? "admin" : "customer";
+
     await User.create({
       name,
       email: email.toLowerCase().trim(),
       passwordHash,
       verifyToken: code,
       verifyTokenExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 min
+      role,
     });
 
     await sendVerificationEmail(email.toLowerCase().trim(), name, code);

@@ -4,6 +4,7 @@ import { User } from "@/models/User";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { cookies } from "next/headers";
+import { signSession, setSessionCookie } from "@/lib/auth";
 
 const COOKIE_NAME = "rr_user";
 
@@ -59,7 +60,13 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    return NextResponse.json({ ok: true, name: user.name });
+    // If admin, also set the admin session cookie so they can access /admin/*
+    if (user.role === "admin") {
+      const adminToken = await signSession(user.email);
+      await setSessionCookie(adminToken);
+    }
+
+    return NextResponse.json({ ok: true, name: user.name, role: user.role });
   } catch (e: unknown) {
     console.error("[Customer Login]", e);
     return NextResponse.json(

@@ -40,7 +40,7 @@ function LoginContent() {
         return;
       }
       if (!res.ok) throw new Error(data.error || "Login failed");
-      router.push("/account");
+      router.push(data.role === "admin" ? "/admin" : "/account");
       router.refresh();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Login failed");

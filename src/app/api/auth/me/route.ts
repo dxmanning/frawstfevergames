@@ -6,5 +6,9 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
-  return NextResponse.json({ name: session.name, email: session.email });
+  return NextResponse.json({
+    name: session.name,
+    email: session.email,
+    role: session.role,
+  });
 }

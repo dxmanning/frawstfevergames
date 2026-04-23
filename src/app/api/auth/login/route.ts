@@ -3,7 +3,6 @@ import { setSessionCookie, signSession } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import bcrypt from "bcryptjs";
-import { ensureDefaultAdmin } from "@/lib/seed-admin";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -12,7 +11,6 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  await ensureDefaultAdmin();
 
   // Look up admin user in DB
   const user = await User.findOne({ email: email.toLowerCase().trim(), role: "admin" });
