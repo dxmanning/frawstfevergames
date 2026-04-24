@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
 import { getStripe } from "@/lib/stripe";
+import { sendOrderPaidEmail } from "@/lib/resend";
 
 /**
  * POST /api/webhooks/stripe
@@ -52,6 +53,35 @@ export async function POST(req: NextRequest) {
           order.stripePaymentId = typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id;
           await order.save();
           console.log(`[Stripe Webhook] Order ${order.orderNumber} marked as paid`);
+
+          // Send payment confirmation email (fire-and-forget)
+          if (!order.paidEmailSentAt) {
+            try {
+              await sendOrderPaidEmail({
+                orderNumber: order.orderNumber,
+                customerName: order.contact.name,
+                customerEmail: order.contact.email,
+                items: order.items,
+                subtotal: order.subtotal,
+                shipping: order.shipping,
+                total: order.total,
+                currency: process.env.STORE_CURRENCY || "CAD",
+                fulfillment: order.fulfillment,
+                address: order.fulfillment === "ship" ? {
+                  line1: order.contact.line1,
+                  line2: order.contact.line2,
+                  city: order.contact.city,
+                  state: order.contact.state,
+                  postalCode: order.contact.postalCode,
+                  country: order.contact.country,
+                } : undefined,
+              });
+              order.paidEmailSentAt = new Date();
+              await order.save();
+            } catch (e) {
+              console.error(`[Stripe Webhook] Failed to send paid email for ${order.orderNumber}:`, e);
+            }
+          }
         }
       }
       break;

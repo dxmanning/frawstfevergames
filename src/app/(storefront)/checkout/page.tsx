@@ -64,10 +64,54 @@ export default function CheckoutPage() {
       .catch(() => setProfileChecked(true));
   }, []);
 
-  const ship = useMemo(
+  // Static estimate (fallback while live rate loads)
+  const estimatedShip = useMemo(
     () => quoteShipping(totalWeight(), country, fulfillment === "pickup"),
     [totalWeight, country, fulfillment]
   );
+
+  // Live Stallion rate (fetched once postal code is known)
+  const [liveShip, setLiveShip] = useState<{ amount: number; label: string; source: string } | null>(null);
+  const [ratingShip, setRatingShip] = useState(false);
+
+  useEffect(() => {
+    if (fulfillment === "pickup") { setLiveShip(null); return; }
+    const weight = totalWeight();
+    const pc = form.postalCode.trim();
+    if (!pc || weight === 0) { setLiveShip(null); return; }
+
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      setRatingShip(true);
+      fetch("/api/shipping/rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weightGrams: weight,
+          postalCode: pc,
+          province: form.state,
+          city: form.city,
+          country,
+        }),
+        signal: controller.signal,
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (typeof data.amount === "number") {
+            setLiveShip({ amount: data.amount, label: data.label, source: data.source });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setRatingShip(false));
+    }, 500); // debounce
+
+    return () => { clearTimeout(t); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.postalCode, form.state, form.city, country, fulfillment, lines.length]);
+
+  const ship = fulfillment === "pickup"
+    ? estimatedShip
+    : (liveShip ? { ...estimatedShip, amount: liveShip.amount, label: liveShip.label } : estimatedShip);
 
   const sub = subtotal();
   const total = sub + ship.amount;
@@ -311,7 +355,9 @@ export default function CheckoutPage() {
           <span>{money(sub)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span style={{ color: "var(--text-muted)" }}>{ship.label}</span>
+          <span style={{ color: "var(--text-muted)" }}>
+            {ratingShip ? "Getting live rate…" : ship.label}
+          </span>
           <span>{ship.amount === 0 ? "Free" : money(ship.amount)}</span>
         </div>
         <div className="flex justify-between font-bold text-lg pt-2 border-t" style={{ borderColor: "var(--border)" }}>

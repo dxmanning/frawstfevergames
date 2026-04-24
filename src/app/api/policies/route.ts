@@ -60,7 +60,7 @@ We use industry-standard encryption and secure storage. No system is 100% secure
 
   shippingPolicy: `We currently ship within Canada only.
 
-- Orders ship within 1–3 business days of payment
+- Orders ship within 5 business days of payment
 - Local pickup is available for select items (see product page)
 - Shipping rates are calculated at checkout based on weight and destination
 - Tracking numbers are emailed once your order is handed to the carrier

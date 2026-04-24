@@ -72,6 +72,11 @@ export default function MyOrdersPage() {
             </div>
           </div>
 
+          {/* Shipping status + tracking */}
+          {o.fulfillment === "ship" && (
+            <ShippingStatusBar order={o} />
+          )}
+
           {/* Items */}
           <div className="space-y-2">
             {o.items.map((item: any, i: number) => (
@@ -105,6 +110,88 @@ export default function MyOrdersPage() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// —————————————————————————————————————————————
+// Shipping status bar: 4-step progress (Placed → Paid → Shipped → Delivered)
+// —————————————————————————————————————————————
+
+function trackingUrlFor(carrier?: string, number?: string): string | undefined {
+  if (!number) return undefined;
+  const c = (carrier || "").toLowerCase();
+  if (c.includes("canada post")) return `https://www.canadapost-postescanada.ca/track-reperage/en#/search?searchFor=${encodeURIComponent(number)}`;
+  if (c.includes("ups")) return `https://www.ups.com/track?tracknum=${encodeURIComponent(number)}`;
+  if (c.includes("purolator")) return `https://www.purolator.com/en/shipping/tracker?pin=${encodeURIComponent(number)}`;
+  if (c.includes("fedex")) return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(number)}`;
+  if (c.includes("stallion")) return `https://stallionexpress.ca/track/${encodeURIComponent(number)}`;
+  return undefined;
+}
+
+function ShippingStatusBar({ order }: { order: any }) {
+  const steps = [
+    { key: "placed",    label: "Placed",    met: true },
+    { key: "paid",      label: "Paid",      met: ["paid", "shipped", "completed"].includes(order.status) },
+    { key: "shipped",   label: "Shipped",   met: ["shipped", "completed"].includes(order.status) },
+    { key: "delivered", label: "Delivered", met: order.status === "completed" },
+  ];
+  const url = trackingUrlFor(order.trackingCarrier, order.trackingNumber);
+
+  return (
+    <div
+      className="rounded-lg p-4 border"
+      style={{ background: "var(--bg-ghost)", borderColor: "var(--border)" }}
+    >
+      {/* Progress bar */}
+      <div className="flex items-center">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex-1 flex items-center">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition"
+              style={{
+                background: s.met ? "var(--accent)" : "var(--bg-surface-2)",
+                color: s.met ? "#fff" : "var(--text-faint)",
+                border: s.met ? "none" : "1px solid var(--border-strong)",
+              }}
+            >
+              {s.met ? "✓" : i + 1}
+            </div>
+            <div className="ml-2 text-xs flex-1 min-w-0">
+              <div style={{ color: s.met ? "var(--text-primary)" : "var(--text-faint)", fontWeight: s.met ? 600 : 400 }}>
+                {s.label}
+              </div>
+            </div>
+            {i < steps.length - 1 && (
+              <div className="flex-1 h-0.5 mx-1" style={{ background: steps[i + 1].met ? "var(--accent)" : "var(--border)" }} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Tracking details */}
+      {order.trackingNumber && (
+        <div className="mt-4 pt-3 border-t flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "var(--border)" }}>
+          <div className="text-xs flex-1 min-w-0">
+            <div style={{ color: "var(--text-faint)" }}>
+              {order.trackingCarrier || "Canada Post"} tracking
+            </div>
+            <div className="font-mono font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+              {order.trackingNumber}
+            </div>
+          </div>
+          {url && (
+            <a href={url} target="_blank" rel="noreferrer" className="btn btn-primary text-xs">
+              Track package →
+            </a>
+          )}
+        </div>
+      )}
+      {!order.trackingNumber && order.status === "paid" && (
+        <div className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Tracking info will appear here once your order ships (within 5 business days).
+        </div>
+      )}
     </div>
   );
 }

@@ -49,6 +49,10 @@ export interface OrderDoc {
   contact: AddressDoc;
   status: OrderStatus;
   notes?: string;
+  trackingNumber?: string;
+  trackingCarrier?: string;
+  paidEmailSentAt?: Date;
+  shippedEmailSentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,6 +106,10 @@ const OrderSchema = new Schema<OrderDoc>(
       default: "pending",
     },
     notes: String,
+    trackingNumber: String,
+    trackingCarrier: String,
+    paidEmailSentAt: Date,
+    shippedEmailSentAt: Date,
   },
   { timestamps: true }
 );

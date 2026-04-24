@@ -5,7 +5,7 @@ import PolicyPageLayout from "../_components/PolicyPageLayout";
 const DEFAULT = `We currently ship within Canada only.
 
 Processing time
-Orders are processed within 1-3 business days after payment is confirmed. You'll get an email with tracking when your order ships.
+Orders are processed within 5 business days after payment is confirmed. You'll get an email with tracking when your order ships.
 
 Carrier
 Most orders ship via Canada Post. For larger or high-value items we may use UPS or Purolator at our discretion.

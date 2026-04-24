@@ -50,15 +50,9 @@ const EMPTY: ProductFormValue = {
   images: [],
   description: "",
   variants: [
-    {
-      conditionCode: "VG_CM",
-      sku: "",
-      price: 15,
-      stock: 1,
-      hasManual: true,
-      hasBox: true,
-      hasDisc: true,
-    },
+    { conditionCode: "NEW", sku: "", price: 25, stock: 0, hasManual: true, hasBox: true, hasDisc: true },
+    { conditionCode: "CIB", sku: "", price: 15, stock: 0, hasManual: true, hasBox: true, hasDisc: true },
+    { conditionCode: "DO",  sku: "", price: 10, stock: 0, hasManual: false, hasBox: false, hasDisc: true, notes: "Disc/cart only (loose)" },
   ],
   weightGrams: 180,
   localPickupAvailable: true,

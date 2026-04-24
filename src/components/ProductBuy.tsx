@@ -134,7 +134,7 @@ export default function ProductBuy({ product }: { product: BuyProduct }) {
       </div>
 
       <div className="mt-4 text-xs text-white/60 flex gap-3 flex-wrap">
-        <span>🚚 Ships in 1–2 business days</span>
+        <span>🚚 Ships within 5 business days</span>
         {product.localPickupAvailable && <span>📍 Local pickup available</span>}
       </div>
     </div>
