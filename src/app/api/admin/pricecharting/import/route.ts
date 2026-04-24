@@ -10,6 +10,9 @@ import {
 } from "@/lib/pricecharting";
 import { slugify, randomSuffix } from "@/lib/slug";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 /**
  * POST /api/admin/pricecharting/import
  * Streams progress via SSE (Server-Sent Events).
@@ -207,9 +210,10 @@ export async function POST(req: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

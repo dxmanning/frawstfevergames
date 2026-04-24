@@ -13,14 +13,18 @@ function getInitials(name: string): string {
 export default function Nav() {
   const count = useCart((s) => s.count());
   const [mounted, setMounted] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState<{ name: string; role?: string; avatarUrl?: string } | null>(null);
+
   useEffect(() => {
     setMounted(true);
     fetch("/api/auth/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data?.name) setUser(data); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
   }, []);
+
   const storeName = process.env.NEXT_PUBLIC_STORE_NAME || "Retro Rack";
 
   return (
@@ -42,7 +46,8 @@ export default function Nav() {
           <Link href="/contact" className="nav-link">Contact</Link>
         </nav>
         <div className="flex items-center gap-2">
-          {mounted && user ? (
+          {/* Logged in: show avatar + user's name */}
+          {mounted && authChecked && user && (
             <>
               {user.role === "admin" && (
                 <Link href="/admin" className="btn btn-ghost text-sm">
@@ -52,8 +57,8 @@ export default function Nav() {
               <Link
                 href="/account"
                 className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition hover:bg-[var(--bg-ghost-hover)]"
-                title="My Page"
-                aria-label="My Page"
+                title={`Hi, ${user.name}`}
+                aria-label={user.name}
               >
                 {user.avatarUrl ? (
                   <span
@@ -73,14 +78,25 @@ export default function Nav() {
                     {getInitials(user.name)}
                   </span>
                 )}
-                <span className="text-sm font-medium hidden sm:inline">My Page</span>
+                <span className="text-sm font-medium hidden sm:inline max-w-[9rem] truncate">
+                  {user.name}
+                </span>
               </Link>
             </>
-          ) : mounted ? (
+          )}
+
+          {/* Not logged in (and auth check is done): show Sign in */}
+          {mounted && authChecked && !user && (
             <Link href="/login" className="btn btn-ghost text-sm">
               Sign in
             </Link>
-          ) : null}
+          )}
+
+          {/* While auth is loading, reserve space with an invisible placeholder to avoid layout shift */}
+          {mounted && !authChecked && (
+            <span className="w-[88px] h-10" aria-hidden="true" />
+          )}
+
           <Link href="/cart" className="btn btn-ghost relative">
             <span>Cart</span>
             {mounted && count > 0 && (

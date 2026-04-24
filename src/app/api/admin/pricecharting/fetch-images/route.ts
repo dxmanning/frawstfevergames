@@ -3,6 +3,9 @@ import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/models/Product";
 import { pcFetchCoverImage } from "@/lib/pricecharting";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 /**
  * POST /api/admin/pricecharting/fetch-images
  * Finds all products with a priceChartingId but no coverImage,
@@ -86,9 +89,10 @@ export async function POST(_req: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }
