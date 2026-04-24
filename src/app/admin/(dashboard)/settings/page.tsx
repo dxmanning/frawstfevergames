@@ -109,11 +109,44 @@ export default function AdminSettingsPage() {
               <Input label="Contact email" type="email" value={settings.contactEmail} onChange={(v) => field("contactEmail", v)} />
               <Input label="Contact phone" type="tel" value={settings.contactPhone} onChange={(v) => field("contactPhone", v)} />
               <div className="pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-                <h3 className="font-semibold mb-3">Local Pickup</h3>
+                <h3 className="font-semibold mb-1">Shipping Origin / Local Pickup</h3>
+                <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                  This address is used as the <strong>origin</strong> for live shipping rate calculation (Stallion Express).
+                  Without these fields, checkout falls back to static estimates.
+                </p>
                 <Toggle label="Local pickup available" value={settings.pickupAvailable} onChange={(v) => field("pickupAvailable", v)} />
                 <div className="grid md:grid-cols-2 gap-3 mt-3">
-                  <Input label="Pickup city" value={settings.pickupCity} onChange={(v) => field("pickupCity", v)} />
-                  <Input label="Pickup address" value={settings.pickupAddress} onChange={(v) => field("pickupAddress", v)} />
+                  <Input label="Pickup address line 1" value={settings.pickupLine1 || ""} onChange={(v) => field("pickupLine1", v)} placeholder="123 Main St" />
+                  <Input label="Address line 2 (optional)" value={settings.pickupLine2 || ""} onChange={(v) => field("pickupLine2", v)} placeholder="Unit 4B" />
+                  <Input label="City" value={settings.pickupCity || ""} onChange={(v) => field("pickupCity", v)} placeholder="Toronto" />
+                  <Select
+                    label="Province"
+                    value={settings.pickupProvince || ""}
+                    onChange={(v) => field("pickupProvince", v)}
+                    options={[
+                      ["", "— Select province —"],
+                      ["AB", "Alberta"],
+                      ["BC", "British Columbia"],
+                      ["MB", "Manitoba"],
+                      ["NB", "New Brunswick"],
+                      ["NL", "Newfoundland and Labrador"],
+                      ["NS", "Nova Scotia"],
+                      ["NT", "Northwest Territories"],
+                      ["NU", "Nunavut"],
+                      ["ON", "Ontario"],
+                      ["PE", "Prince Edward Island"],
+                      ["QC", "Quebec"],
+                      ["SK", "Saskatchewan"],
+                      ["YT", "Yukon"],
+                    ]}
+                  />
+                  <Input label="Postal code" value={settings.pickupPostalCode || ""} onChange={(v) => field("pickupPostalCode", v)} placeholder="M5V 2T6" />
+                  <Select
+                    label="Country"
+                    value={settings.pickupCountry || "CA"}
+                    onChange={(v) => field("pickupCountry", v)}
+                    options={[["CA", "Canada"]]}
+                  />
                 </div>
               </div>
             </Section>

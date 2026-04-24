@@ -15,7 +15,8 @@ export async function PATCH(req: NextRequest) {
   // Only allow updating known, safe keys (no _id, timestamps, etc.)
   const allowed = [
     "storeName", "storeTagline", "storeDescription", "contactEmail", "contactPhone",
-    "pickupCity", "pickupAddress", "pickupAvailable",
+    "pickupCity", "pickupAddress", "pickupLine1", "pickupLine2",
+    "pickupPostalCode", "pickupProvince", "pickupCountry", "pickupAvailable",
     "currency", "taxRate", "freeShippingThreshold",
     "heroTitle", "heroSubtitle", "heroButtonText", "heroButtonLink",
     "announcementBar", "announcementBarEnabled",

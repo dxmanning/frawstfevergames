@@ -8,9 +8,14 @@ export interface SettingsDoc {
   storeDescription: string;
   contactEmail: string;
   contactPhone: string;
-  // Location / pickup
+  // Location / pickup (also used as shipping origin for live rate calculation)
   pickupCity: string;
   pickupAddress: string;
+  pickupLine1: string;
+  pickupLine2: string;
+  pickupPostalCode: string;
+  pickupProvince: string;
+  pickupCountry: string;
   pickupAvailable: boolean;
   // Commerce
   currency: string;
@@ -51,6 +56,11 @@ const SettingsSchema = new Schema<SettingsDoc>(
 
     pickupCity: { type: String, default: "" },
     pickupAddress: { type: String, default: "" },
+    pickupLine1: { type: String, default: "" },
+    pickupLine2: { type: String, default: "" },
+    pickupPostalCode: { type: String, default: "" },
+    pickupProvince: { type: String, default: "" },
+    pickupCountry: { type: String, default: "CA" },
     pickupAvailable: { type: Boolean, default: true },
 
     currency: { type: String, default: "USD" },

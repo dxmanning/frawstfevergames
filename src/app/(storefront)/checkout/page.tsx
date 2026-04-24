@@ -72,6 +72,7 @@ export default function CheckoutPage() {
 
   // Live Stallion rate (fetched once postal code is known)
   const [liveShip, setLiveShip] = useState<{ amount: number; label: string; source: string } | null>(null);
+  const [shipDebug, setShipDebug] = useState<string[]>([]);
   const [ratingShip, setRatingShip] = useState(false);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function CheckoutPage() {
           if (typeof data.amount === "number") {
             setLiveShip({ amount: data.amount, label: data.label, source: data.source });
           }
+          if (Array.isArray(data.debug)) setShipDebug(data.debug);
         })
         .catch(() => {})
         .finally(() => setRatingShip(false));
@@ -360,6 +362,19 @@ export default function CheckoutPage() {
           </span>
           <span>{ship.amount === 0 ? "Free" : money(ship.amount)}</span>
         </div>
+
+        {/* Debug info when falling back to estimate (visible only to clarify why) */}
+        {!ratingShip && fulfillment === "ship" && !liveShip && shipDebug.length > 0 && (
+          <details className="text-xs">
+            <summary className="cursor-pointer" style={{ color: "var(--text-faint)" }}>
+              Why an estimate? (live rates unavailable)
+            </summary>
+            <ul className="mt-2 space-y-1 pl-4 list-disc" style={{ color: "var(--text-muted)" }}>
+              {shipDebug.map((d, i) => <li key={i}>{d}</li>)}
+            </ul>
+          </details>
+        )}
+
         <div className="flex justify-between font-bold text-lg pt-2 border-t" style={{ borderColor: "var(--border)" }}>
           <span>Total</span>
           <span>{money(total)}</span>
