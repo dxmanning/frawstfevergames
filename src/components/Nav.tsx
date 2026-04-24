@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useState } from "react";
+import CurrencyToggle from "./CurrencyToggle";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -46,6 +47,8 @@ export default function Nav() {
           <Link href="/contact" className="nav-link">Contact</Link>
         </nav>
         <div className="flex items-center gap-2">
+          <CurrencyToggle />
+
           {/* Logged in: show avatar + user's name */}
           {mounted && authChecked && user && (
             <>

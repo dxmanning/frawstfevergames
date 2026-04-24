@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ProgressModal from "@/components/admin/ProgressModal";
 
 interface ProgressState {
@@ -38,9 +38,26 @@ export default function PricingSyncPage() {
   // PriceCharting sync state
   //   - applyToSellPrice: when true, variant sell prices are re-written from PC values
   //     (otherwise only the pcLoose/pcCIB/pcNew reference fields are refreshed)
-  //   - markupPct: multiplier on top of the PC price (0 = match PC exactly, 7.5 = +7.5%)
+  //   - fxRate: USD→CAD exchange rate (PC API returns USD; we display CAD)
+  //   - markupPct: additional markup on top of the CAD-converted price
   const [pcApplySell, setPcApplySell] = useState(true);
+  const [pcFxAuto, setPcFxAuto] = useState(true);
+  const [pcFx, setPcFx] = useState(1.38);
+  const [pcFxMeta, setPcFxMeta] = useState<{ rate: number; source: string; asOf: string } | null>(null);
   const [pcMarkup, setPcMarkup] = useState(7.5);
+
+  // Load current live FX rate on mount so the preview is accurate
+  useEffect(() => {
+    fetch("/api/admin/forex")
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.rate === "number") {
+          setPcFxMeta({ rate: data.rate, source: data.source, asOf: data.asOf });
+          setPcFx(data.rate);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // PriceCharting import state
   const [importLimit, setImportLimit] = useState(100);
@@ -155,6 +172,8 @@ export default function PricingSyncPage() {
         body: JSON.stringify({
           applyToSellPrice: pcApplySell,
           markupPct: pcMarkup,
+          fxAuto: pcFxAuto,
+          fxRate: pcFxAuto ? undefined : pcFx,
         }),
       },
       "Syncing PriceCharting Prices"
@@ -305,22 +324,76 @@ export default function PricingSyncPage() {
           </a>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-3 items-end">
-          <label className="flex items-start gap-2 text-sm md:col-span-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={pcApplySell}
-              onChange={(e) => setPcApplySell(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span>
-              <b>Overwrite variant selling prices</b> with PriceCharting values
-              <span className="block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                If off, only the pcNew / pcCIB / pcLoose reference fields update and your existing
-                variant prices stay untouched — that&apos;s why prices might look stale.
-              </span>
+        <label className="flex items-start gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={pcApplySell}
+            onChange={(e) => setPcApplySell(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <b>Overwrite variant selling prices</b> with PriceCharting values
+            <span className="block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              If off, only the pcNew / pcCIB / pcLoose reference fields update and your existing
+              variant prices stay untouched.
             </span>
-          </label>
+          </span>
+        </label>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <div>
+            <label className="label flex items-center justify-between">
+              <span>USD → CAD exchange rate</span>
+              <label className="flex items-center gap-1.5 text-xs font-normal cursor-pointer" style={{ color: "var(--text-muted)" }}>
+                <input
+                  type="checkbox"
+                  checked={pcFxAuto}
+                  onChange={(e) => {
+                    setPcFxAuto(e.target.checked);
+                    if (e.target.checked && pcFxMeta) setPcFx(pcFxMeta.rate);
+                  }}
+                />
+                Auto (live rate)
+              </label>
+            </label>
+            <input
+              type="number"
+              step="0.0001"
+              className="input"
+              value={pcFxAuto && pcFxMeta ? pcFxMeta.rate : pcFx}
+              onChange={(e) => { setPcFxAuto(false); setPcFx(Number(e.target.value) || 1); }}
+              disabled={!pcApplySell || pcFxAuto}
+            />
+            <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+              {pcFxAuto && pcFxMeta ? (
+                <>
+                  Live from <b>{pcFxMeta.source}</b> (as of {pcFxMeta.asOf}) ·{" "}
+                  <button
+                    type="button"
+                    className="hover:underline"
+                    style={{ color: "var(--accent)" }}
+                    onClick={() => {
+                      fetch("/api/admin/forex?refresh=1")
+                        .then((r) => r.json())
+                        .then((d) => {
+                          if (typeof d.rate === "number") {
+                            setPcFxMeta({ rate: d.rate, source: d.source, asOf: d.asOf });
+                            setPcFx(d.rate);
+                          }
+                        })
+                        .catch(() => {});
+                    }}
+                  >
+                    Refresh
+                  </button>
+                </>
+              ) : pcFxAuto ? (
+                "Loading live rate…"
+              ) : (
+                "Manual override — re-enable Auto to use live rate."
+              )}
+            </p>
+          </div>
           <div>
             <label className="label">Markup %</label>
             <input
@@ -332,21 +405,20 @@ export default function PricingSyncPage() {
               disabled={!pcApplySell}
             />
             <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
-              {pcMarkup === 0
-                ? "Match PC exactly"
-                : pcMarkup > 0
-                  ? `PC price × ${(1 + pcMarkup / 100).toFixed(3)}`
-                  : `PC price × ${(1 + pcMarkup / 100).toFixed(3)} (discount)`}
+              Additional margin on top of the CAD-converted price.
             </p>
           </div>
         </div>
 
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <b>Example:</b> PC new-price $20.37 × (1 + {pcMarkup}%) = <b>${(20.37 * (1 + pcMarkup / 100)).toFixed(2)}</b>
-          <br />
-          Condition → PC mapping: <b>NEW</b> → new-price, <b>CIB / VG w/ manual</b> → cib-price,
-          <b> VG no manual / Good / Well Used / Disc Only</b> → loose-price,
-          <b> Box Only</b> → box-only-price, <b>Manual Only</b> → manual-only-price.
+        <div className="rounded-lg p-3 text-xs" style={{ background: "var(--bg-ghost)", color: "var(--text-muted)" }}>
+          <div className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Preview (AC2 New):</div>
+          <div>PC USD $20.37 × FX {pcFx.toFixed(2)} = <b>C${(20.37 * pcFx).toFixed(2)}</b> (market)</div>
+          <div>C${(20.37 * pcFx).toFixed(2)} × (1 + {pcMarkup}%) = <b style={{ color: "var(--accent)" }}>C${(20.37 * pcFx * (1 + pcMarkup / 100)).toFixed(2)}</b> (final sell price)</div>
+          <div className="mt-2">
+            Condition → PC mapping: <b>NEW</b> → new-price, <b>CIB / VG w/ manual</b> → cib-price,
+            <b> VG no manual / Good / Well Used / Disc Only</b> → loose-price,
+            <b> Box Only</b> → box-only-price, <b>Manual Only</b> → manual-only-price.
+          </div>
         </div>
 
         <button onClick={runPCSync} disabled={progress.open} className="btn btn-primary">
