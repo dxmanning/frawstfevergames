@@ -10,6 +10,7 @@ export interface UserDoc {
   verifyTokenExpires?: Date;
   resetToken?: string;
   resetTokenExpires?: Date;
+  avatarUrl?: string;
   phone?: string;
   address?: {
     line1?: string;
@@ -34,6 +35,7 @@ const UserSchema = new Schema<UserDoc>(
     verifyTokenExpires: Date,
     resetToken: String,
     resetTokenExpires: Date,
+    avatarUrl: { type: String, default: "" },
     phone: String,
     address: {
       line1: String,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/models/Product";
 import { Order } from "@/models/Order";
+import { User } from "@/models/User";
 import { quoteShipping } from "@/lib/shipping";
 import { randomSuffix } from "@/lib/slug";
 import { getCustomerSession } from "@/lib/customer-auth";
@@ -39,6 +40,21 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const session = await getCustomerSession();
+
+    // Logged-in users must have a saved delivery address for shipped orders
+    if (session && fulfillment === "ship") {
+      const user = await User.findById(session.userId).select("address").lean();
+      const addr = (user as { address?: { line1?: string; city?: string; postalCode?: string } } | null)?.address;
+      if (!addr?.line1 || !addr?.city || !addr?.postalCode) {
+        return NextResponse.json(
+          {
+            error: "Please save your delivery address in your profile before checking out.",
+            needsAddress: true,
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     const productIds = [...new Set(items.map((i) => i.productId))];
     const products = await Product.find({ _id: { $in: productIds } });

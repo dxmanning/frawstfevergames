@@ -109,44 +109,75 @@ export async function pcFetchCoverImage(pcId: string): Promise<string> {
     const res = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       cache: "no-store",
+      redirect: "follow",
     });
-    if (!res.ok) return "";
+    if (!res.ok) {
+      console.warn(`[pcFetchCoverImage] HTTP ${res.status} for ${pcId}`);
+      return "";
+    }
     const html = await res.text();
 
     let sourceUrl = "";
 
-    // Try og:image first
-    const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
-      || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
-    if (ogMatch?.[1]) {
-      const imgUrl = ogMatch[1].trim();
-      if (imgUrl && !imgUrl.includes("placeholder") && !imgUrl.includes("no-image")) {
-        sourceUrl = imgUrl;
-      }
+    // 1) Primary: the <div class="cover"> → <img src="..."> pattern (PriceCharting's actual HTML)
+    //    Images are hosted at storage.googleapis.com/images.pricecharting.com/...
+    const coverMatch = html.match(/<div\s+class=["']cover["'][^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i);
+    if (coverMatch?.[1]) {
+      sourceUrl = coverMatch[1].trim();
     }
 
-    // Fallback: look for product image in the page
+    // 2) Fallback: any image hosted on images.pricecharting.com
     if (!sourceUrl) {
-      const imgMatch = html.match(/<img[^>]+class=["'][^"']*product-image[^"']*["'][^>]+src=["']([^"']+)["']/i)
-        || html.match(/<img[^>]+src=["'](https:\/\/[^"']*pricecharting[^"']*\/game\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i);
+      const imgMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']*images\.pricecharting\.com\/[^"']+\.(?:jpg|jpeg|png|webp))["']/i);
       if (imgMatch?.[1]) sourceUrl = imgMatch[1].trim();
     }
 
-    if (!sourceUrl) return "";
+    // 3) Fallback: og:image meta tag (if PriceCharting adds it in future)
+    if (!sourceUrl) {
+      const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
+        || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+      if (ogMatch?.[1]) {
+        const imgUrl = ogMatch[1].trim();
+        if (imgUrl && !imgUrl.includes("placeholder") && !imgUrl.includes("no-image")) {
+          sourceUrl = imgUrl;
+        }
+      }
+    }
+
+    if (!sourceUrl) {
+      console.warn(`[pcFetchCoverImage] No image found in HTML for ${pcId}`);
+      return "";
+    }
+
+    // Normalize protocol-relative URLs
+    if (sourceUrl.startsWith("//")) sourceUrl = "https:" + sourceUrl;
+
+    // Upgrade to the higher-resolution version when possible
+    // PriceCharting serves 240.jpg thumbnails by default, and 1600.jpg is the full-res version.
+    const hiRes = sourceUrl.replace(/\/240(\.(jpg|jpeg|png|webp))$/i, "/1600$1");
+    if (hiRes !== sourceUrl) {
+      try {
+        const check = await fetch(hiRes, { method: "HEAD" });
+        if (check.ok) sourceUrl = hiRes;
+      } catch { /* fall back to 240.jpg */ }
+    }
 
     // Upload to Cloudinary
     try {
       const { uploadFromUrl } = await import("@/lib/cloudinary");
-      return await uploadFromUrl(sourceUrl, "products");
+      const cloudUrl = await uploadFromUrl(sourceUrl, "products");
+      console.log(`[pcFetchCoverImage] Uploaded ${pcId} → ${cloudUrl}`);
+      return cloudUrl;
     } catch (e) {
       console.error(`[pcFetchCoverImage] Cloudinary upload failed for ${pcId}:`, e);
-      // Fall back to raw URL if Cloudinary fails
       return sourceUrl;
     }
-  } catch {
+  } catch (e) {
+    console.error(`[pcFetchCoverImage] Error for ${pcId}:`, e);
     return "";
   }
 }

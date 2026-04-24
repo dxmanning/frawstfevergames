@@ -41,6 +41,13 @@ export default async function AccountPage() {
           </div>
           <span className="text-white/30 text-xl">→</span>
         </Link>
+        <Link href="/account/messages" className="card p-5 hover:border-[#9b5cff]/50 transition flex items-center justify-between">
+          <div>
+            <div className="font-semibold">My Messages</div>
+            <div className="text-sm text-white/50">Contact form messages you've sent</div>
+          </div>
+          <span className="text-white/30 text-xl">→</span>
+        </Link>
         <Link href="/cart" className="card p-5 hover:border-[#9b5cff]/50 transition flex items-center justify-between">
           <div>
             <div className="font-semibold">Cart</div>

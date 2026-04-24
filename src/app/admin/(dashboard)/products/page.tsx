@@ -204,7 +204,7 @@ export default function ProductsAdmin() {
                     {p.featured && <span className="chip tag-new">Featured</span>}
                   </div>
                   {stock === 0 && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold tracking-wider text-sm">
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold tracking-wider text-sm text-white">
                       SOLD OUT
                     </div>
                   )}

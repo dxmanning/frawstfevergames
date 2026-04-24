@@ -139,10 +139,25 @@ export async function POST(req: NextRequest) {
               existing.pcNew = neu;
               existing.referencePrice = referencePrice ?? existing.referencePrice;
               existing.lastPriceSyncAt = new Date();
+
+              // Fetch cover image if missing
+              let imgAdded = false;
+              if (!existing.coverImage) {
+                try {
+                  const img = await pcFetchCoverImage(id);
+                  await new Promise((r) => setTimeout(r, 200));
+                  if (img) {
+                    existing.coverImage = img;
+                    if (!existing.images.includes(img)) existing.images.push(img);
+                    imgAdded = true;
+                  }
+                } catch { /* best-effort */ }
+              }
+
               await existing.save();
               updated++;
               processed++;
-              send({ type: "progress", processed, total, created, updated, skipped, errors: errors.length, log: `Updated "${title}" (${platform})` });
+              send({ type: "progress", processed, total, created, updated, skipped, errors: errors.length, log: `Updated "${title}" (${platform})${imgAdded ? " + cover image" : ""}` });
             } else {
               let base = slugify(`${title}-${platform}`);
               let slug = base;

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AvatarUploader from "@/components/AvatarUploader";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [address, setAddress] = useState({
     line1: "", line2: "", city: "", state: "", postalCode: "", country: "",
   });
@@ -33,6 +35,7 @@ export default function ProfilePage() {
         setName(data.name || "");
         setEmail(data.email || "");
         setPhone(data.phone || "");
+        setAvatarUrl(data.avatarUrl || "");
         if (data.address) setAddress({ ...address, ...data.address });
       })
       .catch(() => {})
@@ -52,7 +55,8 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, phone, address };
+      // Canada-only shipping for now
+      const body: Record<string, unknown> = { name, phone, avatarUrl, address: { ...address, country: "CA" } };
       if (newPassword) {
         body.currentPassword = currentPassword;
         body.newPassword = newPassword;
@@ -96,8 +100,15 @@ export default function ProfilePage() {
 
       <form onSubmit={save} className="space-y-6">
         {/* Personal info */}
-        <div className="card p-6 space-y-4">
+        <div className="card p-6 space-y-5">
           <h2 className="font-semibold text-lg">Personal Information</h2>
+
+          {/* Avatar */}
+          <div className="pb-5 border-b" style={{ borderColor: "var(--border)" }}>
+            <div className="label mb-3">Avatar</div>
+            <AvatarUploader name={name} avatarUrl={avatarUrl} onChange={setAvatarUrl} />
+          </div>
+
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="label">Name</label>
@@ -122,11 +133,30 @@ export default function ProfilePage() {
         </div>
 
         {/* Address */}
-        <div className="card p-6 space-y-4">
-          <h2 className="font-semibold text-lg">Shipping Address</h2>
-          <p className="text-xs text-white/50">
-            Save your default address to auto-fill at checkout.
-          </p>
+        <div className="card p-6 space-y-4" id="address">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <svg className="w-5 h-5" style={{ color: "var(--accent)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Delivery Location
+              </h2>
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                Required before you can place a shipped order. Auto-fills at checkout.
+              </p>
+            </div>
+            {address.line1 && address.city && address.postalCode ? (
+              <span className="chip" style={{ color: "var(--ok)", borderColor: "rgba(74, 222, 128, 0.3)", background: "rgba(74, 222, 128, 0.1)" }}>
+                ✓ Set
+              </span>
+            ) : (
+              <span className="chip" style={{ color: "var(--warn)", borderColor: "rgba(251, 191, 36, 0.3)", background: "rgba(251, 191, 36, 0.1)" }}>
+                Required
+              </span>
+            )}
+          </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="label">Address line 1</label>
@@ -150,13 +180,8 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="label">Country</label>
-              <select className="select" value={address.country} onChange={(e) => setAddress({ ...address, country: e.target.value })}>
-                <option value="">Select country</option>
-                <option value="US">United States</option>
+              <select className="select" value="CA" disabled>
                 <option value="CA">Canada</option>
-                <option value="GB">United Kingdom</option>
-                <option value="AU">Australia</option>
-                <option value="OTHER">Other</option>
               </select>
             </div>
           </div>

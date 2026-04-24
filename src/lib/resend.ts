@@ -18,6 +18,90 @@ export function generateVerifyCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Send a contact-form message to the admin inbox. */
+export async function sendContactToAdmin(
+  adminEmail: string,
+  senderEmail: string,
+  title: string,
+  content: string
+) {
+  const resend = getResend();
+  const safeTitle = escapeHtml(title);
+  const safeContent = escapeHtml(content).replace(/\n/g, "<br>");
+  const safeSender = escapeHtml(senderEmail);
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: adminEmail,
+    replyTo: senderEmail,
+    subject: `[Contact] ${title}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 16px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="font-size: 20px; color: #1a1a2e; margin: 0;">Frawst Fever Games — New Contact Message</h1>
+        </div>
+        <div style="background: #f7f3ff; border-left: 4px solid #9b5cff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 13px; color: #6b5b8f;">From</div>
+          <div style="font-size: 15px; color: #1a0d2e; font-weight: 600;">${safeSender}</div>
+          <div style="font-size: 13px; color: #6b5b8f; margin-top: 10px;">Subject</div>
+          <div style="font-size: 16px; color: #1a0d2e; font-weight: 600;">${safeTitle}</div>
+        </div>
+        <div style="font-size: 15px; color: #333; line-height: 1.6; padding: 16px 20px; background: #ffffff; border: 1px solid #eee; border-radius: 8px;">
+          ${safeContent}
+        </div>
+        <p style="font-size: 13px; color: #999; margin-top: 24px;">
+          Reply directly to this email to respond to ${safeSender}.
+        </p>
+      </div>
+    `,
+  });
+}
+
+/** Send a confirmation copy back to the person who submitted the form. */
+export async function sendContactConfirmation(
+  senderEmail: string,
+  title: string,
+  content: string
+) {
+  const resend = getResend();
+  const safeTitle = escapeHtml(title);
+  const safeContent = escapeHtml(content).replace(/\n/g, "<br>");
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: senderEmail,
+    subject: `We received your message — ${title}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 16px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="font-size: 24px; color: #1a1a2e; margin: 0;">Frawst Fever Games</h1>
+        </div>
+        <p style="font-size: 16px; color: #333;">
+          Thanks for reaching out! We received your message and will get back to you as soon as possible.
+        </p>
+        <div style="background: #f7f3ff; border-radius: 10px; padding: 20px; margin: 24px 0;">
+          <div style="font-size: 13px; color: #6b5b8f; margin-bottom: 6px;">Your message</div>
+          <div style="font-size: 16px; font-weight: 600; color: #1a0d2e; margin-bottom: 12px;">${safeTitle}</div>
+          <div style="font-size: 14px; color: #333; line-height: 1.6; white-space: pre-wrap;">${safeContent}</div>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          This is an automated confirmation. Please do not reply to this email.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(to: string, name: string, token: string) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(to)}`;

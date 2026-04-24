@@ -31,6 +31,7 @@ export async function PATCH(req: NextRequest) {
   if (body.name !== undefined) user.name = body.name;
   if (body.phone !== undefined) user.phone = body.phone;
   if (body.address !== undefined) user.address = body.address;
+  if (body.avatarUrl !== undefined) user.avatarUrl = body.avatarUrl;
 
   // Password change requires current password
   if (body.newPassword) {

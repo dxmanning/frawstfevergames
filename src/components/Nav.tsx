@@ -2,12 +2,18 @@
 import Link from "next/link";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useState } from "react";
-import ThemeToggle from "./ThemeToggle";
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function Nav() {
   const count = useCart((s) => s.count());
   const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<{ name: string; role?: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; role?: string; avatarUrl?: string } | null>(null);
   useEffect(() => {
     setMounted(true);
     fetch("/api/auth/me")
@@ -33,9 +39,9 @@ export default function Nav() {
           <Link href="/shop?platform=Switch" className="nav-link">Switch</Link>
           <Link href="/shop?platform=Xbox Series" className="nav-link">Xbox</Link>
           <Link href="/about" className="nav-link">About</Link>
+          <Link href="/contact" className="nav-link">Contact</Link>
         </nav>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
           {mounted && user ? (
             <>
               {user.role === "admin" && (
@@ -43,8 +49,31 @@ export default function Nav() {
                   Admin
                 </Link>
               )}
-              <Link href="/account" className="btn btn-ghost text-sm">
-                {user.name}
+              <Link
+                href="/account"
+                className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition hover:bg-[var(--bg-ghost-hover)]"
+                title="My Page"
+                aria-label="My Page"
+              >
+                {user.avatarUrl ? (
+                  <span
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border"
+                    style={{ borderColor: "var(--border-strong)" }}
+                  >
+                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  </span>
+                ) : (
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
+                    style={{
+                      background: "linear-gradient(135deg, #9b5cff 0%, #ff3da6 100%)",
+                      boxShadow: "0 2px 8px rgba(155, 92, 255, 0.35)",
+                    }}
+                  >
+                    {getInitials(user.name)}
+                  </span>
+                )}
+                <span className="text-sm font-medium hidden sm:inline">My Page</span>
               </Link>
             </>
           ) : mounted ? (

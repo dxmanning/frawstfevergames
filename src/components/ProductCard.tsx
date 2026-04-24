@@ -44,7 +44,7 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.featured && <span className="chip tag-new">★ Featured</span>}
         </div>
         {totalStock === 0 && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold tracking-wider">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold tracking-wider text-white">
             SOLD OUT
           </div>
         )}

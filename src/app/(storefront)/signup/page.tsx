@@ -2,6 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PolicyModal from "@/components/PolicyModal";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -9,6 +10,9 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [policyInitialTab, setPolicyInitialTab] = useState<"terms" | "privacy" | "returns" | "shipping">("terms");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,6 +34,10 @@ export default function SignupPage() {
     }
     if (password.length < 8) {
       setErr("Password must be at least 8 characters");
+      return;
+    }
+    if (!agreed) {
+      setErr("Please accept the Terms and Privacy Policy to continue");
       return;
     }
 
@@ -244,15 +252,55 @@ export default function SignupPage() {
             required
           />
         </div>
-        {err && <div className="text-[#ff3da6] text-sm">{err}</div>}
-        <button className="btn btn-primary w-full justify-center" disabled={loading}>
+        {/* Policy agreement */}
+        <label className="flex items-start gap-2.5 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            I have read and agree to the{" "}
+            <button
+              type="button"
+              onClick={() => { setPolicyInitialTab("terms"); setPolicyOpen(true); }}
+              className="hover:underline font-medium"
+              style={{ color: "var(--accent)" }}
+            >
+              Terms of Service
+            </button>
+            {" "}and{" "}
+            <button
+              type="button"
+              onClick={() => { setPolicyInitialTab("privacy"); setPolicyOpen(true); }}
+              className="hover:underline font-medium"
+              style={{ color: "var(--accent)" }}
+            >
+              Privacy Policy
+            </button>
+            .
+          </span>
+        </label>
+
+        {err && <div className="text-sm" style={{ color: "var(--danger)" }}>{err}</div>}
+        <button
+          className="btn btn-primary w-full justify-center"
+          disabled={loading || !agreed}
+        >
           {loading ? "Creating account…" : "Sign up"}
         </button>
-        <p className="text-center text-sm text-white/50">
+        <p className="text-center text-sm" style={{ color: "var(--text-muted)" }}>
           Already have an account?{" "}
-          <Link href="/login" className="text-[#9b5cff] hover:underline">Sign in</Link>
+          <Link href="/login" className="hover:underline" style={{ color: "var(--accent)" }}>Sign in</Link>
         </p>
       </form>
+
+      <PolicyModal
+        open={policyOpen}
+        onClose={() => setPolicyOpen(false)}
+        initialTab={policyInitialTab}
+      />
     </div>
   );
 }
