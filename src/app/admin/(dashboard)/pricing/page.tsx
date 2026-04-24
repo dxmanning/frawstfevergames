@@ -36,8 +36,11 @@ export default function PricingSyncPage() {
   const [loading, setLoading] = useState(false);
 
   // PriceCharting sync state
-  const [pcApplySell, setPcApplySell] = useState(false);
-  const [pcMarkup, setPcMarkup] = useState(15);
+  //   - applyToSellPrice: when true, variant sell prices are re-written from PC values
+  //     (otherwise only the pcLoose/pcCIB/pcNew reference fields are refreshed)
+  //   - markupPct: multiplier on top of the PC price (0 = match PC exactly, 7.5 = +7.5%)
+  const [pcApplySell, setPcApplySell] = useState(true);
+  const [pcMarkup, setPcMarkup] = useState(7.5);
 
   // PriceCharting import state
   const [importLimit, setImportLimit] = useState(100);
@@ -303,27 +306,44 @@ export default function PricingSyncPage() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-3 items-end">
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <label className="flex items-start gap-2 text-sm md:col-span-2 cursor-pointer">
             <input
               type="checkbox"
               checked={pcApplySell}
               onChange={(e) => setPcApplySell(e.target.checked)}
+              className="mt-0.5"
             />
-            Also update each variant's <b>selling price</b> (maps condition → PC price)
+            <span>
+              <b>Overwrite variant selling prices</b> with PriceCharting values
+              <span className="block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                If off, only the pcNew / pcCIB / pcLoose reference fields update and your existing
+                variant prices stay untouched — that&apos;s why prices might look stale.
+              </span>
+            </span>
           </label>
           <div>
             <label className="label">Markup %</label>
             <input
               type="number"
+              step="0.1"
               className="input"
               value={pcMarkup}
               onChange={(e) => setPcMarkup(Number(e.target.value) || 0)}
               disabled={!pcApplySell}
             />
+            <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+              {pcMarkup === 0
+                ? "Match PC exactly"
+                : pcMarkup > 0
+                  ? `PC price × ${(1 + pcMarkup / 100).toFixed(3)}`
+                  : `PC price × ${(1 + pcMarkup / 100).toFixed(3)} (discount)`}
+            </p>
           </div>
         </div>
 
-        <div className="text-xs text-white/60">
+        <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <b>Example:</b> PC new-price $20.37 × (1 + {pcMarkup}%) = <b>${(20.37 * (1 + pcMarkup / 100)).toFixed(2)}</b>
+          <br />
           Condition → PC mapping: <b>NEW</b> → new-price, <b>CIB / VG w/ manual</b> → cib-price,
           <b> VG no manual / Good / Well Used / Disc Only</b> → loose-price,
           <b> Box Only</b> → box-only-price, <b>Manual Only</b> → manual-only-price.
